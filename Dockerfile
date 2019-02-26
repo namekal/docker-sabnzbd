@@ -5,7 +5,7 @@ ARG BUILD_DATE
 ARG VERSION
 ARG SABNZBD_VERSION
 LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
-LABEL maintainer="sparklyballs"
+LABEL maintainer="namekal"
 
 # environment settings
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -25,24 +25,38 @@ RUN \
  else \
 	SABNZBD="sabnzbdplus=${SABNZBD_VERSION}"; \
  fi && \
+ add-apt-repository multiverse && \
  apt-get update && \
  apt-get install -y \
+ 	openvpn \
+	curl \
+	wget \
+ 	software-properties-common \
 	p7zip-full \
 	par2-tbb \
 	python-sabyenc \
 	${SABNZBD} \
 	unrar \
 	unzip && \
+ wget https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64.deb && \
+ dpkg -i dumb-init*.deb && \
+ rm -rf dumb-init*.deb && \
+ curl -L https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz | tar -C /usr/local/bin -xzv \
+ echo "USER=root\nHOST=0.0.0.0\nPORT=8081\nCONFIG=/config/sabnzbd-home\n" > /etc/default/sabnzbdplus && \
  echo "**** cleanup ****" && \
  apt-get clean && \
  rm -rf \
 	/tmp/* \
 	/var/lib/apt/lists/* \
 	/var/tmp/*
+ sudo service sabnzbdplus start
 
 # add local files
 COPY root/ /
+ADD openvpn/ /etc/openvpn/
+ADD transmission/ /etc/transmission/
 
 # ports and volumes
-EXPOSE 8080 9090
-VOLUME /config /downloads /incomplete-downloads
+EXPOSE 8081 9090
+VOLUME /config /downloads /incomplete-downloads /data
+CMD ["dumb-init", "/etc/openvpn/start.sh"]
